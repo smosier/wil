@@ -75,7 +75,9 @@
 #define __WI_SUPPRESS_NOEXCEPT_ANALYSIS
 #endif
 
+#ifndef __unix__
 #include <sal.h>
+#endif // __unix__
 
 // Some SAL remapping / decoration to better support Doxygen.  Macros that look like function calls can
 // confuse Doxygen when they are used to decorate a function or variable.  We simplify some of these to
@@ -466,6 +468,8 @@ doing it with global function pointers and header initialization allows a runtim
 #define WI_HEADER_INITITALIZATION_FUNCTION(name, fn) \
     extern "C" { __declspec(selectany) unsigned char g_header_init_ ## name = static_cast<unsigned char>(fn()); } \
     __pragma(comment(linker, "/INCLUDE:g_header_init_" #name))
+#elif defined(__unix__)
+#define WI_HEADER_INITITALIZATION_FUNCTION(name, fn) 
 #else
     #error linker pragma must include g_header_init variation
 #endif
@@ -656,10 +660,10 @@ namespace wil
     @return An HRESULT representing the evaluation of `val`. */
     template <typename T>
     _Post_satisfies_(return == hr)
-    inline constexpr long verify_hresult(T hr)
+    inline constexpr LONG verify_hresult(T hr)
     {
-        // Note: Written in terms of 'long' as HRESULT is actually:  typedef _Return_type_success_(return >= 0) long HRESULT
-        static_assert(wistd::is_same<T, long>::value, "Wrong Type: HRESULT expected");
+        // Note: Written in terms of 'int' as HRESULT is actually:  typedef _Return_type_success_(return >= 0) long HRESULT
+        static_assert(wistd::is_same<T, LONG>::value, "Wrong Type: HRESULT expected");
         return hr;
     }
 

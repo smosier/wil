@@ -37,8 +37,10 @@
 
 // DO NOT add *any* additional includes to this file -- there should be no dependencies from its usage
 #include "wistd_memory.h"
+#ifndef __unix__
 #include <intrin.h> // For __fastfail
 #include <new.h> // For placement new
+#endif // __unix__
 
 #if !defined(__WI_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #pragma GCC system_header

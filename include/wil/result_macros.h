@@ -16,7 +16,7 @@
 
 #include "common.h"
 
-#if !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
+#if !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE) && !defined(__unix__)
 #include <Windows.h>
 #endif
 
@@ -123,9 +123,11 @@ WI_ODR_PRAGMA("WIL_FreeMemory", "0")
 
 #if defined(__cplusplus) && !defined(__WIL_MIN_KERNEL) && !defined(WIL_KERNEL_MODE)
 
+#ifndef __unix__
 #include <strsafe.h>
 #include <intrin.h>     // provides the _ReturnAddress() intrinsic
 #include <new.h>        // provides 'operator new', 'std::nothrow', etc.
+#endif // __unix__
 #if defined(WIL_ENABLE_EXCEPTIONS) && !defined(WIL_SUPPRESS_NEW)
 #include <new>          // provides std::bad_alloc in the windows and public CRT headers
 #endif
@@ -962,7 +964,7 @@ namespace wil
         FailureFlags flags;
         HRESULT hr;
         NTSTATUS status;
-        long failureId;                         // incrementing ID for this specific failure (unique across an individual module load within process)
+        LONG failureId;                         // incrementing ID for this specific failure (unique across an individual module load within process)
         PCWSTR pszMessage;                      // Message is only present for _MSG logging (it's the Sprintf message)
         DWORD threadId;                         // the thread this failure was originally encountered on
         PCSTR pszCode;                          // [debug only] Capture code from the macro
@@ -1523,7 +1525,7 @@ namespace wil
                     return true;
                 }
 
-                long *pCopyRefCount = reinterpret_cast<long *>(WIL_AllocateMemory(sizeof(long)+cbData));
+                LONG *pCopyRefCount = reinterpret_cast<LONG *>(WIL_AllocateMemory(sizeof(LONG)+cbData));
                 if (pCopyRefCount == nullptr)
                 {
                     return false;
@@ -1568,10 +1570,10 @@ namespace wil
             }
 
         private:
-            long *m_pCopy;      // pointer to allocation: refcount + data
+            LONG *m_pCopy;      // pointer to allocation: refcount + data
             size_t m_size;      // size of the data from m_pCopy
 
-            void assign(_In_opt_ long *pCopy, size_t cbSize) WI_NOEXCEPT
+            void assign(_In_opt_ LONG *pCopy, size_t cbSize) WI_NOEXCEPT
             {
                 reset();
                 if (pCopy != nullptr)
@@ -1741,7 +1743,7 @@ namespace wil
         __declspec(noinline) inline int RecordException(HRESULT hr) WI_NOEXCEPT
         {
             static HRESULT volatile s_hrErrorLast = S_OK;
-            static long volatile s_cErrorCount = 0;
+            static LONG volatile s_cErrorCount = 0;
             s_hrErrorLast = hr;
             return ::InterlockedIncrementNoFence(&s_cErrorCount);
         }
@@ -1749,7 +1751,7 @@ namespace wil
         __declspec(noinline) inline int RecordReturn(HRESULT hr) WI_NOEXCEPT
         {
             static HRESULT volatile s_hrErrorLast = S_OK;
-            static long volatile s_cErrorCount = 0;
+            static LONG volatile s_cErrorCount = 0;
             s_hrErrorLast = hr;
             return ::InterlockedIncrementNoFence(&s_cErrorCount);
         }
@@ -1757,7 +1759,7 @@ namespace wil
         __declspec(noinline) inline int RecordLog(HRESULT hr) WI_NOEXCEPT
         {
             static HRESULT volatile s_hrErrorLast = S_OK;
-            static long volatile s_cErrorCount = 0;
+            static LONG volatile s_cErrorCount = 0;
             s_hrErrorLast = hr;
             return ::InterlockedIncrementNoFence(&s_cErrorCount);
         }
@@ -2056,7 +2058,9 @@ namespace wil
         }
 
 #pragma warning(push)
+#ifndef __unix__
 #pragma warning(disable:__WARNING_RETURNING_BAD_RESULT)
+#endif // __unix__
         // NOTE: The following two functions are unfortunate copies of strsafe.h functions that have been copied to reduce the friction associated with using
         // Result.h and ResultException.h in a build that does not have WINAPI_PARTITION_DESKTOP defined (where these are conditionally enabled).
 
@@ -2399,6 +2403,7 @@ namespace wil
         alignas(T) unsigned char m_raw[sizeof(T)]{};
     };
 
+#ifndef __unix__
     /** Forward your DLLMain to this function so that WIL can have visibility into whether a DLL unload is because
     of termination or normal unload.  Note that when g_pfnDllShutdownInProgress is set, WIL attempts to make this
     determination on its own without this callback.  Suppressing private APIs requires use of this. */
@@ -2412,6 +2417,7 @@ namespace wil
             }
         }
     }
+#endif // __unix__
 
     // [optionally] Plug in fallback telemetry reporting
     // Normally, the callback is owned by including ResultLogging.h in the including module.  Alternatively a module
@@ -3208,15 +3214,19 @@ namespace wil
 
         inline HRESULT ResultFromExceptionSeh(const DiagnosticsInfo& diagnostics, void* returnAddress, SupportedExceptions supported, IFunctor& functor) WI_NOEXCEPT
         {
+#ifndef __unix__
             __try
+#endif // __unix__
             {
                 return wil::details::ResultFromKnownExceptions(diagnostics, returnAddress, supported, functor);
             }
+#ifndef __unix__
             __except (wil::details::TerminateAndReportError(GetExceptionInformation()), EXCEPTION_CONTINUE_SEARCH)
             {
                 WI_ASSERT(false);
                 RESULT_NORETURN_RESULT(HRESULT_FROM_WIN32(ERROR_UNHANDLED_EXCEPTION));
             }
+#endif // __unix__
         }
 
         __declspec(noinline) inline HRESULT ResultFromException(const DiagnosticsInfo& diagnostics, SupportedExceptions supported, IFunctor& functor) WI_NOEXCEPT
@@ -3452,7 +3462,7 @@ namespace wil
             debugString[0] = L'\0';
             callContextString[0] = L'\0';
 
-            static long volatile s_failureId = 0;
+            static LONG volatile s_failureId = 0;
 
             failure->hr = resultPair.hr;
             failure->status = resultPair.status;
